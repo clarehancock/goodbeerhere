@@ -137,6 +137,13 @@
     margin: 0 0 8px;
   }
 
+  .badges{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 2px;
+  }
+
   .badge{
     display: inline-flex;
     align-items: center;
@@ -146,11 +153,18 @@
     letter-spacing: 0.01em;
     padding: 4px 9px 4px 7px;
     border-radius: 999px;
+    white-space: nowrap;
   }
   .badge.founder{
     color: var(--amber);
     background: var(--amber-soft);
     border: 1px solid rgba(201,130,46,0.35);
+  }
+  .badge.type{
+    color: var(--cream-muted);
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    font-weight: 500;
   }
   .badge svg{ width:11px; height:11px; }
 
@@ -254,11 +268,14 @@
 
 <script>
   // ---- Venue data -------------------------------------------------
-  // Swap these for your real picks any time — just edit name / area / lat / lng / note.
+  // Swap these for your real picks any time — just edit name / area / type / lat / lng / note.
+  // type must be one of: "Pub", "Micro Pub", "Tap Room", "Brewery",
+  // "Brewery Tap Room", "Bottle Shop (Take Out Only)", "Bottle Shop (Drink In)"
   const venues = [
     {
       name: "The Harp",
       area: "Covent Garden",
+      type: "Pub",
       lat: 51.5099,
       lng: -0.1273,
       note: "Reliable, ever-changing cask ale line-up, steps from Trafalgar Square."
@@ -266,6 +283,7 @@
     {
       name: "The Southampton Arms",
       area: "Gospel Oak",
+      type: "Pub",
       lat: 51.5559,
       lng: -0.1481,
       note: "Cask and craft only, no lager taps at all — exactly the filter this app is built for."
@@ -273,6 +291,7 @@
     {
       name: "The Rake",
       area: "Borough Market",
+      type: "Bottle Shop (Drink In)",
       lat: 51.5055,
       lng: -0.0910,
       note: "Tiny, ever-rotating, serious about condition."
@@ -280,6 +299,7 @@
     {
       name: "Cask Pub & Kitchen",
       area: "Pimlico",
+      type: "Pub",
       lat: 51.4894,
       lng: -0.1367,
       note: "Deep cask range with a genuine craft keg selection alongside it."
@@ -289,7 +309,10 @@
   // ---- Map ----------------------------------------------------------
   const map = L.map('map', { scrollWheelZoom: false }).setView([51.514, -0.128], 12);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
 
   function pinIcon(){
     return L.divIcon({
@@ -301,6 +324,18 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:
     });
   }
 
+  function badgesHtml(v){
+    return `
+      <span class="badges">
+        <span class="badge type">${v.type}</span>
+        <span class="badge founder">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
+          Founder pick
+        </span>
+      </span>
+    `;
+  }
+
   const markers = {};
 
   venues.forEach((v, i) => {
@@ -308,10 +343,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:
     marker.bindPopup(
       `<p class="popup-name">${v.name}</p>
        <p class="popup-area">${v.area}</p>
-       <span class="badge founder">
-         <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
-         Founder pick
-       </span>`
+       ${badgesHtml(v)}`
     );
     markers[i] = marker;
   });
@@ -325,10 +357,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:
     card.innerHTML = `
       <p class="name">${v.name}</p>
       <p class="area">${v.area}</p>
-      <span class="badge founder">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
-        Founder pick
-      </span>
+      ${badgesHtml(v)}
     `;
     function open(){
       map.flyTo([v.lat, v.lng], 15, { duration: 0.6 });
