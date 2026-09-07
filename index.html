@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Good Beer Here</title>
+<meta name="theme-color" content="#17120D" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="description" content="Good Beer Here — an anonymous, crowdsourced map of pubs, taprooms and breweries that genuinely have good beer." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,680&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<style>
+  :root{
+    --bg: #17120D;
+    --panel: #211A12;
+    --panel-border: #3A2E1F;
+    --amber: #C9822E;
+    --amber-deep: #A8631C;
+    --amber-soft: rgba(201,130,46,0.16);
+    --cream: #F3E9D6;
+    --cream-muted: #B7A683;
+    --hop: #6E8F5A;
+    --hop-soft: rgba(110,143,90,0.18);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(201,130,46,0.10), transparent 45%),
+      radial-gradient(circle at 90% 15%, rgba(110,143,90,0.07), transparent 40%);
+  }
+
+  a { color: inherit; }
+
+  .wrap{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 20px 64px;
+  }
+
+  header.hero{
+    padding: 48px 20px 32px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .brandmark{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom: 22px;
+  }
+
+  .brandmark svg{ width:22px; height:22px; flex-shrink:0; }
+  .brandmark span{
+    font-family:'Inter', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    color: var(--cream-muted);
+  }
+
+  h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 680;
+    font-optical-sizing: auto;
+    font-size: clamp(38px, 8vw, 58px);
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    color: var(--cream);
+  }
+
+  h1 em{
+    font-style: italic;
+    font-weight: 500;
+    color: var(--amber);
+  }
+
+  .tagline{
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--cream-muted);
+    max-width: 46ch;
+    margin: 0;
+  }
+
+  .map-panel{
+    max-width: 760px;
+    margin: 8px auto 40px;
+    padding: 0 20px;
+  }
+
+  #map{
+    width: 100%;
+    height: 380px;
+    border-radius: 14px;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 20px 50px -25px rgba(0,0,0,0.7);
+  }
+
+  .leaflet-popup-content-wrapper{
+    background: var(--panel);
+    color: var(--cream);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+  }
+  .leaflet-popup-tip{ background: var(--panel); }
+  .leaflet-popup-content{ margin: 12px 14px; font-family:'Inter',sans-serif; }
+  .leaflet-container a.leaflet-popup-close-button{ color: var(--cream-muted); }
+
+  .popup-name{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  .popup-area{
+    font-size: 12.5px;
+    color: var(--cream-muted);
+    margin: 0 0 8px;
+  }
+
+  .badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 4px 9px 4px 7px;
+    border-radius: 999px;
+  }
+  .badge.founder{
+    color: var(--amber);
+    background: var(--amber-soft);
+    border: 1px solid rgba(201,130,46,0.35);
+  }
+  .badge svg{ width:11px; height:11px; }
+
+  section.list{ padding: 0 20px; }
+
+  .list h2{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 21px;
+    margin: 0 0 4px;
+  }
+  .list .sub{
+    font-size: 14px;
+    color: var(--cream-muted);
+    margin: 0 0 22px;
+  }
+
+  .cards{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 560px){
+    .cards{ grid-template-columns: 1fr; }
+  }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px 16px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover{
+    border-color: var(--amber-deep);
+    transform: translateY(-1px);
+  }
+  .card:focus-visible{
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  .card .name{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 3px;
+  }
+  .card .area{
+    font-size: 13px;
+    color: var(--cream-muted);
+    margin: 0 0 12px;
+  }
+
+  footer{
+    max-width: 760px;
+    margin: 44px auto 0;
+    padding: 20px 20px 0;
+    border-top: 1px solid var(--panel-border);
+  }
+  footer p{
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--cream-muted);
+    margin: 20px 0 0;
+    max-width: 52ch;
+  }
+  footer strong{ color: var(--cream); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="brandmark">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2C12 2 7 8.5 7 13a5 5 0 0010 0c0-4.5-5-11-5-11z" stroke="#C9822E" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M9 13c0 1.7 1.3 3 3 3" stroke="#C9822E" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <span>Good Beer Here</span>
+  </div>
+  <h1>Find where the <em>good</em> beer actually is.</h1>
+  <p class="tagline">Not a star-rating app. A pub either has enough independent, verified reports to earn its place here — or it doesn't appear yet.</p>
+</header>
+
+<div class="map-panel">
+  <div id="map"></div>
+</div>
+
+<section class="list">
+  <h2>On the map so far</h2>
+  <p class="sub">Hand-picked by the founder to get things started — flagged honestly, not dressed up as crowd data.</p>
+  <div class="cards" id="cardList"></div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <p><strong>What "Founder Pick" means:</strong> these venues haven't cleared crowd verification yet — they're here because the founder personally vouches for them. Once a venue collects enough independent reports, its badge will change to show real patron consensus instead.</p>
+  </footer>
+</div>
+
+<script>
+  // ---- Venue data -------------------------------------------------
+  // Swap these for your real picks any time — just edit name / area / lat / lng / note.
+  const venues = [
+    {
+      name: "The Harp",
+      area: "Covent Garden",
+      lat: 51.5099,
+      lng: -0.1273,
+      note: "Reliable, ever-changing cask ale line-up, steps from Trafalgar Square."
+    },
+    {
+      name: "The Southampton Arms",
+      area: "Gospel Oak",
+      lat: 51.5559,
+      lng: -0.1481,
+      note: "Cask and craft only, no lager taps at all — exactly the filter this app is built for."
+    },
+    {
+      name: "The Rake",
+      area: "Borough Market",
+      lat: 51.5055,
+      lng: -0.0910,
+      note: "Tiny, ever-rotating, serious about condition."
+    },
+    {
+      name: "Cask Pub & Kitchen",
+      area: "Pimlico",
+      lat: 51.4894,
+      lng: -0.1367,
+      note: "Deep cask range with a genuine craft keg selection alongside it."
+    }
+  ];
+
+  // ---- Map ----------------------------------------------------------
+  const map = L.map('map', { scrollWheelZoom: false }).setView([51.514, -0.128], 12);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  function pinIcon(){
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:#C9822E;border:2px solid #17120D;box-shadow:0 0 0 2px rgba(201,130,46,0.35);"></div>`,
+      iconSize: [16,16],
+      iconAnchor: [8,8],
+      popupAnchor: [0,-8]
+    });
+  }
+
+  const markers = {};
+
+  venues.forEach((v, i) => {
+    const marker = L.marker([v.lat, v.lng], { icon: pinIcon() }).addTo(map);
+    marker.bindPopup(
+      `<p class="popup-name">${v.name}</p>
+       <p class="popup-area">${v.area}</p>
+       <span class="badge founder">
+         <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
+         Founder pick
+       </span>`
+    );
+    markers[i] = marker;
+  });
+
+  // ---- Card list ------------------------------------------------------
+  const cardList = document.getElementById('cardList');
+  venues.forEach((v, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.tabIndex = 0;
+    card.innerHTML = `
+      <p class="name">${v.name}</p>
+      <p class="area">${v.area}</p>
+      <span class="badge founder">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
+        Founder pick
+      </span>
+    `;
+    function open(){
+      map.flyTo([v.lat, v.lng], 15, { duration: 0.6 });
+      markers[i].openPopup();
+    }
+    card.addEventListener('click', open);
+    card.addEventListener('keypress', (e) => { if(e.key === 'Enter') open(); });
+    cardList.appendChild(card);
+  });
+</script>
+
+</body>
+</html>
