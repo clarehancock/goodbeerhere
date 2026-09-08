@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Good Beer Here — Report</title>
+<meta name="theme-color" content="#17120D" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,680&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #17120D;
+    --panel: #211A12;
+    --panel-border: #3A2E1F;
+    --amber: #C9822E;
+    --amber-deep: #A8631C;
+    --amber-soft: rgba(201,130,46,0.16);
+    --cream: #F3E9D6;
+    --cream-muted: #B7A683;
+    --hop: #6E8F5A;
+    --bad: #C25E4D;
+  }
+  * { box-sizing: border-box; }
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{ max-width: 520px; margin: 0 auto; padding: 36px 20px 64px; }
+
+  .venue-context{
+    padding-bottom: 18px;
+    margin-bottom: 26px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .venue-context .name{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 19px;
+  }
+  .venue-context .area{
+    font-size: 13px;
+    color: var(--cream-muted);
+  }
+
+  h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 660;
+    font-size: clamp(24px, 6.5vw, 30px);
+    line-height: 1.12;
+    margin: 0 0 22px;
+    max-width: 22ch;
+  }
+
+  .option{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .option:hover{ border-color: var(--amber-deep); }
+  .option.checked{
+    border-color: var(--amber);
+    background: var(--amber-soft);
+  }
+
+  .checkbox{
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1.5px solid var(--panel-border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .option.checked .checkbox{
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+  .checkbox svg{
+    width: 13px; height: 13px;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+  .option.checked .checkbox svg{ opacity: 1; }
+
+  .option .label{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  .blurb{
+    margin-top: 18px;
+    padding: 16px 16px;
+    border-radius: 12px;
+    background: rgba(110,143,90,0.08);
+    border: 1px solid rgba(110,143,90,0.25);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--cream-muted);
+  }
+  .blurb strong{ color: var(--cream); }
+
+  .submit{
+    display: block;
+    width: 100%;
+    margin-top: 28px;
+    background: var(--amber);
+    color: #17120D;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    padding: 15px;
+    border-radius: 11px;
+    cursor: pointer;
+  }
+  .submit:hover{ background: var(--amber-deep); }
+  .submit:disabled{
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .hint{
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--cream-muted);
+    margin-top: 10px;
+  }
+  .hint.error{ color: var(--bad); }
+
+  .success{
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .success .checkmark{
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--amber-soft);
+    border: 1px solid rgba(201,130,46,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+  }
+  .success h2{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 21px;
+    margin: 0 0 8px;
+  }
+  .success p{
+    font-size: 14px;
+    color: var(--cream-muted);
+    max-width: 34ch;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div id="formView">
+    <div class="venue-context">
+      <div class="name" id="venueName">Loading venue…</div>
+      <div class="area" id="venueArea"></div>
+    </div>
+
+    <h1>What's actually on offer here?</h1>
+
+    <div class="option" data-value="craft_cask">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#17120D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="label">Craft Cask</span>
+    </div>
+
+    <div class="option" data-value="craft_keg">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#17120D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="label">Craft Keg</span>
+    </div>
+
+    <div class="option" data-value="craft_bottles_cans">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#17120D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="label">Craft Bottles/Cans</span>
+    </div>
+
+    <div class="blurb">
+      <strong>What counts:</strong> rotating or lesser-known beers from smaller UK producers, in any of these formats.<br><br>
+      <strong>What doesn't:</strong> big national brands you'd find in almost any pub — think London Pride, Doom Bar, Stella, Carlsberg. Some "craft-labelled" beers are now owned by big drinks companies too (Beavertown, for example, is owned by Heineken) — if it's what you'd find in a supermarket multipack, it's probably not what we mean.
+    </div>
+
+    <button class="submit" id="submitBtn" disabled>Save report</button>
+    <p class="hint" id="hint">Select at least one option to continue</p>
+  </div>
+
+  <div class="success" id="successView" style="display:none;">
+    <div class="checkmark">
+      <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M5 12l5 5L20 7" stroke="#C9822E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2>Report saved</h2>
+    <p>Thanks — this genuinely adds to this venue's real, independent record. Nothing was guessed or assumed, just what you told us.</p>
+  </div>
+
+</div>
+
+<script>
+  const SUPABASE_URL = "https://bqvkglrqchyoadzjgzne.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_aUTFmodmk3TzH1GOG4sApA_V_9vIz23";
+
+  // Scoped to one real venue for now — routing from the venue lookup
+  // page into this form (so ANY venue can be reported on) is a
+  // follow-up step, not built yet.
+  const VENUE_NAME = "Williams Ale and Cider House";
+
+  let venueId = null;
+  let venueLat = null;
+  let venueLng = null;
+
+  const venueNameEl = document.getElementById('venueName');
+  const venueAreaEl = document.getElementById('venueArea');
+  const options = document.querySelectorAll('.option');
+  const submitBtn = document.getElementById('submitBtn');
+  const hint = document.getElementById('hint');
+  const formView = document.getElementById('formView');
+  const successView = document.getElementById('successView');
+
+  async function loadVenue(){
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/venues?name=eq.${encodeURIComponent(VENUE_NAME)}&select=id,name,area,lat,lng`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (!res.ok) throw new Error('Venue lookup failed');
+      const rows = await res.json();
+      if (rows.length === 0) throw new Error('Venue not found');
+
+      const v = rows[0];
+      venueId = v.id;
+      venueLat = v.lat;
+      venueLng = v.lng;
+      venueNameEl.textContent = v.name;
+      venueAreaEl.textContent = v.area;
+    } catch (err){
+      venueNameEl.textContent = "Couldn't load this venue";
+      venueAreaEl.textContent = "Try refreshing the page";
+    }
+  }
+
+  function updateState(){
+    const anyChecked = document.querySelector('.option.checked');
+    submitBtn.disabled = !anyChecked || !venueId;
+    hint.className = 'hint';
+    hint.textContent = anyChecked ? '' : 'Select at least one option to continue';
+    hint.style.display = anyChecked ? 'none' : 'block';
+  }
+
+  options.forEach(opt => {
+    opt.addEventListener('click', () => {
+      opt.classList.toggle('checked');
+      updateState();
+    });
+  });
+
+  submitBtn.addEventListener('click', () => {
+    if (submitBtn.disabled) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Getting your location…';
+    hint.style.display = 'none';
+
+    if (!navigator.geolocation){
+      hint.className = 'hint error';
+      hint.textContent = "This browser doesn't support location — reporting needs it.";
+      hint.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save report';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+
+      const checked = {
+        craft_cask: false,
+        craft_keg: false,
+        craft_bottles_cans: false
+      };
+      document.querySelectorAll('.option.checked').forEach(el => {
+        checked[el.dataset.value] = true;
+      });
+
+      submitBtn.textContent = 'Saving…';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal'
+          },
+          body: JSON.stringify({
+            venue_id: venueId,
+            craft_cask: checked.craft_cask,
+            craft_keg: checked.craft_keg,
+            craft_bottles_cans: checked.craft_bottles_cans,
+            report_lat: latitude,
+            report_lng: longitude
+          })
+        });
+
+        if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+
+        formView.style.display = 'none';
+        successView.style.display = 'block';
+
+      } catch (err){
+        hint.className = 'hint error';
+        hint.textContent = "Couldn't save your report — try again in a moment.";
+        hint.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save report';
+      }
+
+    }, (err) => {
+      hint.className = 'hint error';
+      hint.textContent = "Location permission was denied or unavailable — this needs location access to work.";
+      hint.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save report';
+    });
+  });
+
+  loadVenue();
+</script>
+
+</body>
+</html>
