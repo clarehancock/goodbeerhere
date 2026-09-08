@@ -137,6 +137,13 @@
     margin: 0 0 8px;
   }
 
+  .popup-note, .card .note{
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--cream-muted);
+    margin: 8px 0 10px;
+  }
+
   .badges{
     display: flex;
     flex-wrap: wrap;
@@ -343,6 +350,7 @@
         marker.bindPopup(
           `<p class="popup-name">${v.name}</p>
            <p class="popup-area">${v.area}</p>
+           ${v.note ? `<p class="popup-note">${v.note}</p>` : ''}
            ${badgesHtml(v)}`
         );
         markers[v.id] = marker;
@@ -353,6 +361,7 @@
         card.innerHTML = `
           <p class="name">${v.name}</p>
           <p class="area">${v.area}</p>
+          ${v.note ? `<p class="note">${v.note}</p>` : ''}
           ${badgesHtml(v)}
         `;
         function open(){
