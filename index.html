@@ -182,6 +182,13 @@
     margin: 0 0 22px;
   }
 
+  .status-msg{
+    font-size: 14px;
+    color: var(--cream-muted);
+    padding: 20px 0;
+  }
+  .status-msg.error{ color: #C25E4D; }
+
   .cards{
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -257,6 +264,7 @@
 <section class="list">
   <h2>On the map so far</h2>
   <p class="sub">Hand-picked by the founder to get things started — flagged honestly, not dressed up as crowd data.</p>
+  <div id="statusMsg" class="status-msg">Loading venues…</div>
   <div class="cards" id="cardList"></div>
 </section>
 
@@ -267,46 +275,14 @@
 </div>
 
 <script>
-  // ---- Venue data -------------------------------------------------
-  // Swap these for your real picks any time — just edit name / area / type / lat / lng / note.
-  // type must be one of: "Pub", "Micro Pub", "Tap Room", "Brewery",
-  // "Brewery Tap Room", "Bottle Shop (Take Out Only)", "Bottle Shop (Drink In)"
-  const venues = [
-    {
-      name: "Williams Ale and Cider House",
-      area: "Liverpool Street",
-      type: "Pub",
-      lat: 51.518522618704765,
-      lng: -0.07849670274948163,
-      note: "3-4 local/UK small batch cask and good selection of keg IPAs from London breweries."
-    },
-    {
-      name: "The Southampton Arms",
-      area: "Gospel Oak",
-      type: "Pub",
-      lat: 51.5559,
-      lng: -0.1481,
-      note: "Craft cask ale and keg beers. Mostly UK small brewers. Proper old booze atmosphere."
-    },
-    {
-      name: "The George",
-      area: "The Strand",
-      type: "Pub",
-      lat: 51.513331807231005,
-      lng: -0.11307001442019678,
-      note: "8 cask (mostly local and small batch), Some keg IPAs."
-    },
-    {
-      name: "Hammerton",
-      area: "Islington-ish",
-      type: "Brewery",
-      lat: 51.54323825948111,
-      lng: -0.11518790277789427,
-      note: "Local brewery with big range of keg beers available including stouts and porters"
-    }
-  ];
+  // ---- Supabase connection ------------------------------------------
+  // Both values below are safe to be public — this is the "publishable"
+  // key, designed to sit in browser code. Row Level Security on the
+  // database is what actually controls access, not secrecy of this key.
+  const SUPABASE_URL = "https://bqvkglrqchyoadzjgzne.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_aUTFmodmk3TzH1GOG4sApA_V_9vIz23";
 
-  // ---- Map ----------------------------------------------------------
+  // ---- Map setup (venues added once data arrives below) --------------
   const map = L.map('map', { scrollWheelZoom: false }).setView([51.514, -0.128], 12);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -325,48 +301,76 @@
   }
 
   function badgesHtml(v){
+    const founderBadge = v.is_founder_pick ? `
+      <span class="badge founder">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
+        Founder pick
+      </span>` : '';
     return `
       <span class="badges">
         <span class="badge type">${v.type}</span>
-        <span class="badge founder">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" fill="#C9822E"/></svg>
-          Founder pick
-        </span>
+        ${founderBadge}
       </span>
     `;
   }
 
+  // ---- Fetch venues live from Supabase --------------------------------
+  const statusMsg = document.getElementById('statusMsg');
+  const cardList = document.getElementById('cardList');
   const markers = {};
 
-  venues.forEach((v, i) => {
-    const marker = L.marker([v.lat, v.lng], { icon: pinIcon() }).addTo(map);
-    marker.bindPopup(
-      `<p class="popup-name">${v.name}</p>
-       <p class="popup-area">${v.area}</p>
-       ${badgesHtml(v)}`
-    );
-    markers[i] = marker;
-  });
+  async function loadVenues(){
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=created_at.asc`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
 
-  // ---- Card list ------------------------------------------------------
-  const cardList = document.getElementById('cardList');
-  venues.forEach((v, i) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.tabIndex = 0;
-    card.innerHTML = `
-      <p class="name">${v.name}</p>
-      <p class="area">${v.area}</p>
-      ${badgesHtml(v)}
-    `;
-    function open(){
-      map.flyTo([v.lat, v.lng], 15, { duration: 0.6 });
-      markers[i].openPopup();
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const venues = await res.json();
+
+      if (venues.length === 0){
+        statusMsg.textContent = "No venues yet — check back soon.";
+        return;
+      }
+
+      statusMsg.style.display = 'none';
+
+      venues.forEach((v, i) => {
+        const marker = L.marker([v.lat, v.lng], { icon: pinIcon() }).addTo(map);
+        marker.bindPopup(
+          `<p class="popup-name">${v.name}</p>
+           <p class="popup-area">${v.area}</p>
+           ${badgesHtml(v)}`
+        );
+        markers[v.id] = marker;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.tabIndex = 0;
+        card.innerHTML = `
+          <p class="name">${v.name}</p>
+          <p class="area">${v.area}</p>
+          ${badgesHtml(v)}
+        `;
+        function open(){
+          map.flyTo([v.lat, v.lng], 15, { duration: 0.6 });
+          markers[v.id].openPopup();
+        }
+        card.addEventListener('click', open);
+        card.addEventListener('keypress', (e) => { if(e.key === 'Enter') open(); });
+        cardList.appendChild(card);
+      });
+
+    } catch (err){
+      statusMsg.className = 'status-msg error';
+      statusMsg.textContent = "Couldn't load venues right now — try refreshing in a moment.";
     }
-    card.addEventListener('click', open);
-    card.addEventListener('keypress', (e) => { if(e.key === 'Enter') open(); });
-    cardList.appendChild(card);
-  });
+  }
+
+  loadVenues();
 </script>
 
 </body>
