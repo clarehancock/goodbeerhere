@@ -143,6 +143,34 @@
   }
   .hint.error{ color: var(--bad); }
 
+  .new-venue-note{
+    background: rgba(110,143,90,0.08);
+    border: 1px solid rgba(110,143,90,0.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--cream-muted);
+    margin-bottom: 18px;
+  }
+
+  .type-field{ margin-bottom: 22px; }
+  .type-field label{
+    display: block;
+    font-size: 12.5px;
+    color: var(--cream-muted);
+    margin-bottom: 6px;
+  }
+  .type-field select{
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    padding: 12px;
+    border-radius: 9px;
+  }
+
   .success{
     text-align: center;
     padding: 40px 20px;
@@ -183,6 +211,23 @@
     </div>
 
     <h1>What's actually on offer here?</h1>
+
+    <div class="new-venue-note" id="newVenueNote" style="display:none;">
+      This venue isn't in Good Beer Here yet — submitting this report adds it, using OpenStreetMap's location as the source of truth.
+    </div>
+
+    <div class="type-field" id="typeField" style="display:none;">
+      <label for="venueType">What kind of venue is this?</label>
+      <select id="venueType">
+        <option value="Pub">Pub</option>
+        <option value="Micro Pub">Micro Pub</option>
+        <option value="Tap Room">Tap Room</option>
+        <option value="Brewery">Brewery</option>
+        <option value="Brewery Tap Room">Brewery Tap Room</option>
+        <option value="Bottle Shop (Take Out Only)">Bottle Shop (Take Out Only)</option>
+        <option value="Bottle Shop (Drink In)">Bottle Shop (Drink In)</option>
+      </select>
+    </div>
 
     <div class="option" data-value="craft_cask">
       <div class="checkbox">
@@ -239,6 +284,8 @@
   let venueId = null;
   let venueLat = null;
   let venueLng = null;
+  let venueName = null;
+  let isNewVenue = false;
 
   const venueNameEl = document.getElementById('venueName');
   const venueAreaEl = document.getElementById('venueArea');
@@ -248,6 +295,9 @@
   const formView = document.getElementById('formView');
   const successView = document.getElementById('successView');
   const notFoundView = document.getElementById('notFoundView');
+  const newVenueNote = document.getElementById('newVenueNote');
+  const typeField = document.getElementById('typeField');
+  const venueTypeSelect = document.getElementById('venueType');
 
   function haversineMeters(lat1, lon1, lat2, lon2){
     const R = 6371000;
@@ -307,19 +357,24 @@
       let v = await findByExactName(name);
       if (!v) v = await findByProximity(lat, lng);
 
-      if (!v){
-        formView.style.display = 'none';
-        notFoundView.style.display = 'block';
-        document.getElementById('notFoundText').textContent =
-          `"${name}" isn't in our system yet. Flagging brand-new venues is coming very soon — for now, this one can't be reported on.`;
-        return;
+      if (v){
+        // Known venue — normal report flow
+        venueId = v.id;
+        venueLat = v.lat;
+        venueLng = v.lng;
+        venueNameEl.textContent = v.name;
+        venueAreaEl.textContent = v.area || '';
+      } else {
+        // Known to OSM, not yet in our database — this report will create it
+        isNewVenue = true;
+        venueLat = lat;
+        venueLng = lng;
+        venueName = name;
+        venueNameEl.textContent = name;
+        venueAreaEl.textContent = '';
+        newVenueNote.style.display = 'block';
+        typeField.style.display = 'block';
       }
-
-      venueId = v.id;
-      venueLat = v.lat;
-      venueLng = v.lng;
-      venueNameEl.textContent = v.name;
-      venueAreaEl.textContent = v.area;
       updateState();
 
     } catch (err){
@@ -330,7 +385,8 @@
 
   function updateState(){
     const anyChecked = document.querySelector('.option.checked');
-    submitBtn.disabled = !anyChecked || !venueId;
+    const hasLocation = venueLat !== null && venueLng !== null;
+    submitBtn.disabled = !anyChecked || !hasLocation;
     hint.className = 'hint';
     hint.textContent = anyChecked ? '' : 'Select at least one option to continue';
     hint.style.display = anyChecked ? 'none' : 'block';
@@ -384,6 +440,31 @@
       submitBtn.textContent = 'Saving…';
 
       try {
+        // If this venue doesn't exist in our database yet, create it first,
+        // using OSM's coordinates as the authoritative location.
+        if (isNewVenue){
+          const createRes = await fetch(`${SUPABASE_URL}/rest/v1/venues`, {
+            method: 'POST',
+            headers: {
+              ...HEADERS,
+              'Content-Type': 'application/json',
+              Prefer: 'return=representation'
+            },
+            body: JSON.stringify({
+              name: venueName,
+              area: null,
+              type: venueTypeSelect.value,
+              lat: venueLat,
+              lng: venueLng,
+              is_founder_pick: false
+            })
+          });
+
+          if (!createRes.ok) throw new Error(`Venue creation failed: ${createRes.status}`);
+          const createdRows = await createRes.json();
+          venueId = createdRows[0].id;
+        }
+
         const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
           method: 'POST',
           headers: {
