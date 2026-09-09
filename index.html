@@ -98,8 +98,33 @@
     line-height: 1.55;
     color: var(--cream-muted);
     max-width: 46ch;
-    margin: 0;
+    margin: 0 0 22px;
   }
+
+  .report-cta{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--amber);
+    color: #17120D;
+    text-decoration: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 12px 18px;
+    border-radius: 10px;
+  }
+  .report-cta:hover{ background: var(--amber-deep); }
+
+  .report-link{
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--amber);
+    text-decoration: none;
+  }
+  .report-link:hover{ text-decoration: underline; }
 
   .map-panel{
     max-width: 760px;
@@ -262,6 +287,10 @@
   </div>
   <h1>Find where the <em>good</em> beer actually is.</h1>
   <p class="tagline">Not a star-rating app. A pub either has enough independent, verified reports to earn its place here — or it doesn't appear yet.</p>
+
+  <a href="find-venue.html" class="report-cta">
+    Is there good beer here? Share it →
+  </a>
 </header>
 
 <div class="map-panel">
@@ -321,6 +350,11 @@
     `;
   }
 
+  function reportLinkHtml(v){
+    const params = new URLSearchParams({ name: v.name, lat: v.lat, lng: v.lng });
+    return `<a href="report-form.html?${params.toString()}" class="report-link">Report here →</a>`;
+  }
+
   // ---- Fetch venues live from Supabase --------------------------------
   const statusMsg = document.getElementById('statusMsg');
   const cardList = document.getElementById('cardList');
@@ -351,7 +385,8 @@
           `<p class="popup-name">${v.name}</p>
            ${v.area ? `<p class="popup-area">${v.area}</p>` : ''}
            ${v.note ? `<p class="popup-note">${v.note}</p>` : ''}
-           ${badgesHtml(v)}`
+           ${badgesHtml(v)}
+           ${reportLinkHtml(v)}`
         );
         markers[v.id] = marker;
 
@@ -363,6 +398,7 @@
           ${v.area ? `<p class="area">${v.area}</p>` : ''}
           ${v.note ? `<p class="note">${v.note}</p>` : ''}
           ${badgesHtml(v)}
+          ${reportLinkHtml(v)}
         `;
         function open(){
           map.flyTo([v.lat, v.lng], 15, { duration: 0.6 });
