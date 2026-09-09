@@ -144,6 +144,47 @@
     margin: 0 0 10px;
   }
 
+  .flag-form input, .flag-form select{
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    padding: 11px 12px;
+    border-radius: 9px;
+    margin-bottom: 10px;
+  }
+  .flag-form label{
+    display: block;
+    font-size: 12.5px;
+    color: var(--cream-muted);
+    margin-bottom: 5px;
+  }
+  .flag-form .submit-flag{
+    background: var(--amber);
+    color: #17120D;
+    border: none;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    padding: 12px 16px;
+    border-radius: 9px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .flag-form .submit-flag:hover{ background: var(--amber-deep); }
+  .flag-form .submit-flag:disabled{ opacity: 0.5; cursor: default; }
+
+  .flag-success{
+    background: var(--amber-soft);
+    border: 1px solid rgba(201,130,46,0.35);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
   .note{
     margin-top: 30px;
     font-size: 12.5px;
@@ -169,6 +210,29 @@
   <div class="flag-new" id="flagNew" style="display:none;">
     <p>Don't see the place you're in?</p>
     <button id="flagBtn">Flag it as a possible new venue</button>
+
+    <div class="flag-form" id="flagForm" style="display:none; margin-top:14px;">
+      <label for="flagName">Venue name</label>
+      <input type="text" id="flagName" placeholder="e.g. The Fox and Hound" />
+
+      <label for="flagType">Type</label>
+      <select id="flagType">
+        <option value="Pub">Pub</option>
+        <option value="Micro Pub">Micro Pub</option>
+        <option value="Tap Room">Tap Room</option>
+        <option value="Brewery">Brewery</option>
+        <option value="Brewery Tap Room">Brewery Tap Room</option>
+        <option value="Bottle Shop (Take Out Only)">Bottle Shop (Take Out Only)</option>
+        <option value="Bottle Shop (Drink In)">Bottle Shop (Drink In)</option>
+      </select>
+
+      <button class="submit-flag" id="submitFlagBtn">Flag this venue</button>
+      <p class="status" id="flagStatus" style="margin-top:10px;"></p>
+    </div>
+
+    <div class="flag-success" id="flagSuccess" style="display:none; margin-top:14px;">
+      Flagged — thanks. This won't appear on the public map until it's been confirmed, same as any new venue.
+    </div>
   </div>
 
   <p class="note">This is a standalone preview of the venue-lookup step only. Selecting a venue here doesn't submit anything yet — that's the next milestone, once reports can actually be saved.</p>
@@ -180,6 +244,21 @@
   const resultsEl = document.getElementById('results');
   const flagNewEl = document.getElementById('flagNew');
   const flagBtn = document.getElementById('flagBtn');
+  const flagForm = document.getElementById('flagForm');
+  const flagName = document.getElementById('flagName');
+  const flagType = document.getElementById('flagType');
+  const submitFlagBtn = document.getElementById('submitFlagBtn');
+  const flagStatus = document.getElementById('flagStatus');
+  const flagSuccess = document.getElementById('flagSuccess');
+
+  const SUPABASE_URL = "https://bqvkglrqchyoadzjgzne.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_aUTFmodmk3TzH1GOG4sApA_V_9vIz23";
+  const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+  // Set once a search has run, reused by the flag-new-venue form so it
+  // doesn't need to ask for location a second time.
+  let lastLat = null;
+  let lastLng = null;
 
   const TYPE_LABELS = {
     pub: "Pub",
@@ -257,6 +336,8 @@
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
+      lastLat = latitude;
+      lastLng = longitude;
       const urlParams = new URLSearchParams(window.location.search);
       const radius = parseInt(urlParams.get('radius')) || 1500; // metres
       statusEl.textContent = `Searching OpenStreetMap within ${radius}m…`;
@@ -264,10 +345,14 @@
         [out:json][timeout:20];
         (
           node["amenity"~"^(pub|bar|biergarten|nightclub)$"](around:${radius},${latitude},${longitude});
+          way["amenity"~"^(pub|bar|biergarten|nightclub)$"](around:${radius},${latitude},${longitude});
+          relation["amenity"~"^(pub|bar|biergarten|nightclub)$"](around:${radius},${latitude},${longitude});
           node["craft"="brewery"](around:${radius},${latitude},${longitude});
+          way["craft"="brewery"](around:${radius},${latitude},${longitude});
           node["shop"="alcohol"](around:${radius},${latitude},${longitude});
+          way["shop"="alcohol"](around:${radius},${latitude},${longitude});
         );
-        out body;
+        out center;
       `;
 
       try {
@@ -298,9 +383,9 @@
           .map(el => ({
             name: el.tags.name,
             label: labelFor(el.tags),
-            lat: el.lat,
-            lng: el.lon,
-            distance: haversineMeters(latitude, longitude, el.lat, el.lon)
+            lat: el.lat || el.center.lat,
+            lng: el.lon || el.center.lon,
+            distance: haversineMeters(latitude, longitude, el.lat || el.center.lat, el.lon || el.center.lon)
           }))
           .sort((a, b) => a.distance - b.distance)
           .slice(0, 15);
@@ -322,7 +407,55 @@
   findBtn.addEventListener('click', findNearby);
 
   flagBtn.addEventListener('click', () => {
-    alert('This is where the "possible new taproom" flow will go — not built yet, this button is just a placeholder for now.');
+    flagForm.style.display = flagForm.style.display === 'none' ? 'block' : 'none';
+  });
+
+  submitFlagBtn.addEventListener('click', async () => {
+    const name = flagName.value.trim();
+
+    if (!name){
+      flagStatus.className = 'status error';
+      flagStatus.textContent = "Enter a venue name first.";
+      return;
+    }
+    if (lastLat === null || lastLng === null){
+      flagStatus.className = 'status error';
+      flagStatus.textContent = "Couldn't confirm your location — try searching again first.";
+      return;
+    }
+
+    submitFlagBtn.disabled = true;
+    submitFlagBtn.textContent = 'Saving…';
+    flagStatus.textContent = '';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/pending_venues`, {
+        method: 'POST',
+        headers: {
+          ...HEADERS,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          name: name,
+          type: flagType.value,
+          lat: lastLat,
+          lng: lastLng
+        })
+      });
+
+      if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+
+      flagForm.style.display = 'none';
+      flagBtn.style.display = 'none';
+      flagSuccess.style.display = 'block';
+
+    } catch (err){
+      flagStatus.className = 'status error';
+      flagStatus.textContent = "Couldn't save that — try again in a moment.";
+      submitFlagBtn.disabled = false;
+      submitFlagBtn.textContent = 'Flag this venue';
+    }
   });
 </script>
 
