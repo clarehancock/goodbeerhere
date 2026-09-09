@@ -349,7 +349,7 @@
         const marker = L.marker([v.lat, v.lng], { icon: pinIcon() }).addTo(map);
         marker.bindPopup(
           `<p class="popup-name">${v.name}</p>
-           <p class="popup-area">${v.area}</p>
+           ${v.area ? `<p class="popup-area">${v.area}</p>` : ''}
            ${v.note ? `<p class="popup-note">${v.note}</p>` : ''}
            ${badgesHtml(v)}`
         );
@@ -360,7 +360,7 @@
         card.tabIndex = 0;
         card.innerHTML = `
           <p class="name">${v.name}</p>
-          <p class="area">${v.area}</p>
+          ${v.area ? `<p class="area">${v.area}</p>` : ''}
           ${v.note ? `<p class="note">${v.note}</p>` : ''}
           ${badgesHtml(v)}
         `;
