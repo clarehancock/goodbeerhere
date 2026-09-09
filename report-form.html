@@ -222,16 +222,19 @@
     <p>Thanks — this genuinely adds to this venue's real, independent record. Nothing was guessed or assumed, just what you told us.</p>
   </div>
 
+  <div class="success" id="notFoundView" style="display:none;">
+    <h2 style="margin-bottom:10px;">Not quite ready</h2>
+    <p id="notFoundText"></p>
+    <p style="margin-top:18px;"><a href="find-venue.html" style="color:var(--amber); font-weight:600; text-decoration:none;">← Back to venue lookup</a></p>
+  </div>
+
 </div>
 
 <script>
   const SUPABASE_URL = "https://bqvkglrqchyoadzjgzne.supabase.co";
   const SUPABASE_KEY = "sb_publishable_aUTFmodmk3TzH1GOG4sApA_V_9vIz23";
-
-  // Scoped to one real venue for now — routing from the venue lookup
-  // page into this form (so ANY venue can be reported on) is a
-  // follow-up step, not built yet.
-  const VENUE_NAME = "Williams Ale and Cider House";
+  const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  const MATCH_RADIUS_METERS = 150;
 
   let venueId = null;
   let venueLat = null;
@@ -244,26 +247,84 @@
   const hint = document.getElementById('hint');
   const formView = document.getElementById('formView');
   const successView = document.getElementById('successView');
+  const notFoundView = document.getElementById('notFoundView');
+
+  function haversineMeters(lat1, lon1, lat2, lon2){
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  async function findByExactName(name){
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/venues?name=eq.${encodeURIComponent(name)}&select=id,name,area,lat,lng`,
+      { headers: HEADERS }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows.length ? rows[0] : null;
+  }
+
+  async function findByProximity(lat, lng){
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/venues?select=id,name,area,lat,lng`,
+      { headers: HEADERS }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+
+    let closest = null;
+    let closestDist = Infinity;
+    rows.forEach(v => {
+      const d = haversineMeters(lat, lng, v.lat, v.lng);
+      if (d < closestDist){ closestDist = d; closest = v; }
+    });
+    return (closest && closestDist <= MATCH_RADIUS_METERS) ? closest : null;
+  }
 
   async function loadVenue(){
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/venues?name=eq.${encodeURIComponent(VENUE_NAME)}&select=id,name,area,lat,lng`,
-        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-      );
-      if (!res.ok) throw new Error('Venue lookup failed');
-      const rows = await res.json();
-      if (rows.length === 0) throw new Error('Venue not found');
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name');
+    const lat = parseFloat(params.get('lat'));
+    const lng = parseFloat(params.get('lng'));
 
-      const v = rows[0];
+    if (!name || isNaN(lat) || isNaN(lng)){
+      venueNameEl.textContent = "No venue selected";
+      venueAreaEl.textContent = "Start from the venue lookup page";
+      formView.style.display = 'none';
+      notFoundView.style.display = 'block';
+      document.getElementById('notFoundText').textContent =
+        "This page needs a venue to report on. Head back and pick one from the nearby list.";
+      return;
+    }
+
+    try {
+      let v = await findByExactName(name);
+      if (!v) v = await findByProximity(lat, lng);
+
+      if (!v){
+        formView.style.display = 'none';
+        notFoundView.style.display = 'block';
+        document.getElementById('notFoundText').textContent =
+          `"${name}" isn't in our system yet. Flagging brand-new venues is coming very soon — for now, this one can't be reported on.`;
+        return;
+      }
+
       venueId = v.id;
       venueLat = v.lat;
       venueLng = v.lng;
       venueNameEl.textContent = v.name;
       venueAreaEl.textContent = v.area;
+      updateState();
+
     } catch (err){
       venueNameEl.textContent = "Couldn't load this venue";
-      venueAreaEl.textContent = "Try refreshing the page";
+      venueAreaEl.textContent = "Try again in a moment";
     }
   }
 
@@ -316,8 +377,7 @@
         const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
           method: 'POST',
           headers: {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${SUPABASE_KEY}`,
+            ...HEADERS,
             'Content-Type': 'application/json',
             Prefer: 'return=minimal'
           },
