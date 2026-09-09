@@ -362,6 +362,16 @@
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
 
+      const distanceFromVenue = haversineMeters(latitude, longitude, venueLat, venueLng);
+      if (distanceFromVenue > MATCH_RADIUS_METERS){
+        hint.className = 'hint error';
+        hint.textContent = `You appear to be about ${Math.round(distanceFromVenue)}m from this venue — reports need to be submitted from within ${MATCH_RADIUS_METERS}m of it.`;
+        hint.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save report';
+        return;
+      }
+
       const checked = {
         craft_cask: false,
         craft_keg: false,

@@ -257,9 +257,9 @@
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
-      statusEl.textContent = 'Searching OpenStreetMap for nearby venues…';
-
-      const radius = 800; // metres
+      const urlParams = new URLSearchParams(window.location.search);
+      const radius = parseInt(urlParams.get('radius')) || 1500; // metres
+      statusEl.textContent = `Searching OpenStreetMap within ${radius}m…`;
       const query = `
         [out:json][timeout:20];
         (
