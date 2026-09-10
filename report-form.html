@@ -324,6 +324,7 @@
   let venueLat = null;
   let venueLng = null;
   let venueName = null;
+  let venueArea = null;
   let isNewVenue = false;
 
   const venueNameEl = document.getElementById('venueName');
@@ -379,6 +380,7 @@
   async function loadVenue(){
     const params = new URLSearchParams(window.location.search);
     const name = params.get('name');
+    const area = params.get('area') || null;
     const lat = parseFloat(params.get('lat'));
     const lng = parseFloat(params.get('lng'));
 
@@ -409,8 +411,9 @@
         venueLat = lat;
         venueLng = lng;
         venueName = name;
+        venueArea = area;
         venueNameEl.textContent = name;
-        venueAreaEl.textContent = '';
+        venueAreaEl.textContent = area || '';
         newVenueNote.style.display = 'block';
         typeField.style.display = 'block';
       }
@@ -491,7 +494,7 @@
             },
             body: JSON.stringify({
               name: venueName,
-              area: null,
+              area: venueArea,
               type: venueTypeSelect.value,
               lat: venueLat,
               lng: venueLng,

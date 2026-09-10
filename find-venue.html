@@ -348,7 +348,8 @@
         const params = new URLSearchParams({
           name: v.name,
           lat: v.lat,
-          lng: v.lng
+          lng: v.lng,
+          area: v.area || ''
         });
         window.location.href = `report-form.html?${params.toString()}`;
       });
@@ -419,6 +420,7 @@
           .map(el => ({
             name: el.tags.name,
             label: labelFor(el.tags),
+            area: el.tags['addr:suburb'] || el.tags['addr:neighbourhood'] || el.tags['addr:city'] || el.tags['addr:town'] || '',
             lat: el.lat || el.center.lat,
             lng: el.lon || el.center.lon,
             distance: haversineMeters(latitude, longitude, el.lat || el.center.lat, el.lon || el.center.lon)
