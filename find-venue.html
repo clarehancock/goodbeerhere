@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Good Beer Here — Find a venue</title>
+<title>Good Beer Here — Tag a venue</title>
 <meta name="theme-color" content="#17120D" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +24,31 @@
     --bad: #C25E4D;
   }
   * { box-sizing: border-box; }
+
+  .site-nav{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .site-nav .brand{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    color: var(--cream);
+  }
+  .site-nav .links a{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cream-muted);
+    text-decoration: none;
+    margin-left: 18px;
+  }
+  .site-nav .links a:hover{ color: var(--amber); }
   html, body{
     margin:0; padding:0;
     background: var(--bg);
@@ -197,12 +222,24 @@
 </head>
 <body>
 
-<div class="wrap">
-  <p class="eyebrow">Milestone 1 demo</p>
-  <h1>What's around you?</h1>
-  <p class="lead">This pulls real, live pub and brewery data from OpenStreetMap based on your current location — nothing hardcoded, no app-provided list.</p>
+<div class="site-nav">
+  <a href="index.html" class="brand">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px;">
+      <path d="M12 2C12 2 7 8.5 7 13a5 5 0 0010 0c0-4.5-5-11-5-11z" stroke="#C9822E" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M9 13c0 1.7 1.3 3 3 3" stroke="#C9822E" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>Good Beer Here</a>
+  <div class="links">
+    <a href="index.html">Home</a>
+    <a href="terms.html">Terms</a>
+  </div>
+</div>
 
-  <button class="find" id="findBtn">Find venues near me</button>
+
+<div class="wrap">
+  <h1>Which venue are you at?</h1>
+  <p class="lead">Search for real pubs, taprooms and breweries near you, then pick the one you're in to tag it.</p>
+
+  <button class="find" id="findBtn">Show venues near me</button>
   <div class="status" id="status"></div>
 
   <div class="results" id="results"></div>
@@ -235,7 +272,6 @@
     </div>
   </div>
 
-  <p class="note">This is a standalone preview of the venue-lookup step only. Selecting a venue here doesn't submit anything yet — that's the next milestone, once reports can actually be saved.</p>
 </div>
 
 <script>
