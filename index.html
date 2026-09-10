@@ -228,6 +228,14 @@
   }
   .badge svg{ width:11px; height:11px; }
 
+  .report-count{
+    font-size: 12px;
+    color: var(--cream-muted);
+    margin: 8px 0 0;
+  }
+  .report-count.zero{ font-style: italic; }
+  .report-count strong{ color: var(--cream); font-weight: 600; }
+
   section.list{ padding: 0 20px; }
 
   .list h2{
@@ -396,6 +404,22 @@
     return `<a href="report-form.html?${params.toString()}" class="report-link">Report here →</a>`;
   }
 
+  function reportCountHtml(venueId, reportsByVenue){
+    const timestamps = (reportsByVenue[venueId] || []).map(t => new Date(t)).sort((a,b) => a-b);
+    const count = timestamps.length;
+
+    if (count === 0){
+      return `<p class="report-count zero">No reports yet — be the first</p>`;
+    }
+    if (count === 1){
+      return `<p class="report-count"><strong>1</strong> independent report so far</p>`;
+    }
+
+    const spreadDays = Math.round((timestamps[timestamps.length - 1] - timestamps[0]) / (1000 * 60 * 60 * 24));
+    const spreadText = spreadDays === 0 ? 'same day' : `over ${spreadDays} day${spreadDays === 1 ? '' : 's'}`;
+    return `<p class="report-count"><strong>${count}</strong> independent reports, ${spreadText}</p>`;
+  }
+
   // ---- Fetch venues live from Supabase --------------------------------
   const statusMsg = document.getElementById('statusMsg');
   const cardList = document.getElementById('cardList');
@@ -403,15 +427,28 @@
 
   async function loadVenues(){
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=created_at.asc`, {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`
-        }
-      });
+      const [venuesRes, reportsRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=created_at.asc`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/reports?select=venue_id,created_at`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        })
+      ]);
 
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      const venues = await res.json();
+      if (!venuesRes.ok) throw new Error(`Request failed: ${venuesRes.status}`);
+      const venues = await venuesRes.json();
+
+      // Group report timestamps by venue — if this fetch fails, still show
+      // venues, just without counts, rather than breaking the whole page.
+      let reportsByVenue = {};
+      if (reportsRes.ok){
+        const reports = await reportsRes.json();
+        reports.forEach(r => {
+          if (!reportsByVenue[r.venue_id]) reportsByVenue[r.venue_id] = [];
+          reportsByVenue[r.venue_id].push(r.created_at);
+        });
+      }
 
       if (venues.length === 0){
         statusMsg.textContent = "No venues yet — check back soon.";
@@ -427,6 +464,7 @@
            ${v.area ? `<p class="popup-area">${v.area}</p>` : ''}
            ${v.note ? `<p class="popup-note">${v.note}</p>` : ''}
            ${badgesHtml(v)}
+           ${reportCountHtml(v.id, reportsByVenue)}
            ${reportLinkHtml(v)}`
         );
         markers[v.id] = marker;
@@ -439,6 +477,7 @@
           ${v.area ? `<p class="area">${v.area}</p>` : ''}
           ${v.note ? `<p class="note">${v.note}</p>` : ''}
           ${badgesHtml(v)}
+          ${reportCountHtml(v.id, reportsByVenue)}
           ${reportLinkHtml(v)}
         `;
         function open(){
